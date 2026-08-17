@@ -14,7 +14,7 @@ The application provides a centralized interface for site information, dock heal
 - **Authentication:** Firebase Authentication
 - **Hosting / Repository:** GitHub
 - **UI:** HTML, CSS, JavaScript / JSX
-- **UAV Ecosystem:** DJI Dock / DJI Enterprise
+- **UAV Ecosystem:** DJI Dock / SkyStation
 
 ---
 
