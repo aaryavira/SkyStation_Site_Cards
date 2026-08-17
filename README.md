@@ -1,6 +1,6 @@
-# Skylark Dock Ops
+# Skylark SkyStation Operation Site Card
 
-A web-based Dock Operations platform developed for managing and monitoring **DJI Dock-based UAV operations** across wind, solar, and renewable energy sites.
+A web / document based SkyStation Operations platform developed for managing and monitoring **SkyStation operations** across wind, solar, and renewable energy sites.
 
 The application provides a centralized interface for site information, dock health, flight parameters, operational status, infrastructure, flight obstacles, and other critical information required by Drone Pilots and Dock Operations teams.
 
