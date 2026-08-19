@@ -2,320 +2,632 @@
    FIRESTORE → UI MAPPER
    SkyStation Site Information Repository
 
-   Production-safe mapper
+   Production-ready
+   Firestore = DATA
+   Mapper    = NORMALIZATION
+   React     = UI / ICONS / PRESENTATION
+========================================================== */
 
-   Firestore
-   sites
-     └── <Site>
-          ├── header
-          ├── operational
-          │    ├── needToKnow
-          │    ├── incidents
-          │    ├── FlightObstacles
-          │    ├── Flight Parameters
-          │    └── Dock Health
-          ├── map
-          ├── stakeholders
-          └── footer
 
-   IMPORTANT:
-   - Firestore controls DATA
-   - Frontend controls UI / icons / formatting
-   - Map data is kept completely independent
-     from Need To Know / Incident Log
+/* ==========================================================
+   GENERIC HELPERS
+========================================================== */
+
+function isObject(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
+function toArray(value) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (isObject(value)) {
+    return Object.values(value);
+  }
+
+  return [];
+}
+
+/*
+ * Makes Firestore keys tolerant to:
+ *   nightOperations
+ *   Night Operations
+ *   night operations
+ *   Night_Operations
+ *   nightOperations
+ *   accidental spaces
+ */
+function normalizeKey(key) {
+  return String(key)
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+}
+
+function getNormalizedField(object, possibleKeys) {
+  if (!isObject(object)) {
+    return undefined;
+  }
+
+  const wantedKeys = possibleKeys.map(normalizeKey);
+
+  for (const [actualKey, value] of Object.entries(object)) {
+    if (wantedKeys.includes(normalizeKey(actualKey))) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function getField(object, possibleKeys, fallback = undefined) {
+  const value = getNormalizedField(
+    object,
+    possibleKeys
+  );
+
+  return value !== undefined
+    ? value
+    : fallback;
+}
+
+
+/* ==========================================================
+   FLIGHT PARAMETER NORMALIZATION
+========================================================== */
+
+function mapParameter(parameter, fallbackId = "") {
+  if (!isObject(parameter)) {
+    return null;
+  }
+
+  return {
+    id:
+      parameter.id ||
+      fallbackId ||
+      "",
+
+    subtitle:
+      parameter.subtitle ||
+      "",
+
+    value:
+      parameter.value ||
+      "--",
+  };
+}
+
+function mapParameterArray(value) {
+  return toArray(value)
+    .filter(isObject)
+    .map((item, index) =>
+      mapParameter(
+        item,
+        `parameter-${index}`
+      )
+    )
+    .filter(Boolean);
+}
+
+
+/* ==========================================================
+   DAY OPERATIONS
+========================================================== */
+
+function mapDayOperations(rawDay) {
+  const day =
+    isObject(rawDay)
+      ? rawDay
+      : {};
+
+  const minimumFlightAltitude =
+    getField(
+      day,
+      [
+        "minimumFlightAltitude",
+        "Minimum Flight Altitude",
+      ],
+      []
+    );
+
+  const maximumFlightAltitude =
+    getField(
+      day,
+      [
+        "maximumFlightAltitude",
+        "Maximum Flight Altitude",
+      ]
+    );
+
+  const safeAltitude =
+    getField(
+      day,
+      [
+        "safeAltitude",
+        "Safe Altitude",
+      ]
+    );
+
+  const rthAltitude =
+    getField(
+      day,
+      [
+        "rthAltitude",
+        "RTH Altitude",
+      ]
+    );
+
+  return {
+    minimumFlightAltitude:
+      mapParameterArray(
+        minimumFlightAltitude
+      ),
+
+    maximumFlightAltitude:
+      mapParameter(
+        maximumFlightAltitude,
+        "maximumFlightAltitude"
+      ),
+
+    safeAltitude:
+      mapParameter(
+        safeAltitude,
+        "safeAltitude"
+      ),
+
+    rthAltitude:
+      mapParameter(
+        rthAltitude,
+        "rthAltitude"
+      ),
+  };
+}
+
+
+/* ==========================================================
+   NIGHT OPERATIONS
+========================================================== */
+
+function mapNightOperations(rawNight) {
+  const night =
+    isObject(rawNight)
+      ? rawNight
+      : {};
+
+  const minimumFlightAltitude =
+    getField(
+      night,
+      [
+        "minimumFlightAltitude",
+        "Minimum Flight Altitude",
+      ],
+      []
+    );
+
+  return {
+    minimumFlightAltitude:
+      mapParameterArray(
+        minimumFlightAltitude
+      ),
+  };
+}
+
+
+/* ==========================================================
+   FLIGHT PARAMETERS
+
+   Handles:
+
+   flightParameters
+   Flight Parameters
+
+   dayOperations
+   Day Operations
+
+   nightOperations
+   Night Operations
+========================================================== */
+
+function mapFlightParameters(rawParameters) {
+  const source =
+    isObject(rawParameters)
+      ? rawParameters
+      : {};
+
+  const rawDay =
+    getField(
+      source,
+      [
+        "dayOperations",
+        "Day Operations",
+      ],
+      {}
+    );
+
+  const rawNight =
+    getField(
+      source,
+      [
+        "nightOperations",
+        "Night Operations",
+      ],
+      {}
+    );
+
+  const result = {
+    dayOperations:
+      mapDayOperations(rawDay),
+
+    nightOperations:
+      mapNightOperations(rawNight),
+  };
+
+  /*
+   * TEMPORARY VERIFICATION LOG
+   *
+   * This will tell us exactly what the mapper receives.
+   * Keep it for now.
+   */
+  console.log(
+    "[siteMapper] Flight Parameters:",
+    result
+  );
+
+  console.log(
+    "[siteMapper] Night Operations:",
+    result.nightOperations
+  );
+
+  return result;
+}
+
+
+/* ==========================================================
+   MAIN SITE MAPPER
 ========================================================== */
 
 export function mapSite(doc) {
   const data =
-    doc && typeof doc === "object"
+    isObject(doc)
       ? doc
       : {};
 
-  /* ==========================================================
+  /* ========================================================
      ROOT SECTIONS
-  ========================================================== */
+  ======================================================== */
 
   const header =
-    data.header && typeof data.header === "object"
+    isObject(data.header)
       ? data.header
       : {};
 
   const operational =
-    data.operational &&
-    typeof data.operational === "object"
+    isObject(data.operational)
       ? data.operational
       : {};
 
   const map =
-    data.map &&
-    typeof data.map === "object"
+    isObject(data.map)
       ? data.map
       : {};
 
-  const footer =
-    data.footer &&
-    typeof data.footer === "object"
-      ? data.footer
-      : {};
-
   const stakeholders =
-    data.stakeholders &&
-    typeof data.stakeholders === "object"
+    isObject(data.stakeholders)
       ? data.stakeholders
       : {};
 
-  /* ==========================================================
+  const footer =
+    isObject(data.footer)
+      ? data.footer
+      : {};
+
+
+  /* ========================================================
      HEADER
-  ========================================================== */
+  ======================================================== */
 
   const location =
-    header.location &&
-    typeof header.location === "object"
+    isObject(header.location)
       ? header.location
       : {};
 
   const internalTools =
-    header.InternalTools ||
-    header.internalTools ||
-    header["Internal Tools"] ||
-    {};
+    getField(
+      header,
+      [
+        "InternalTools",
+        "Internal Tools",
+        "internalTools",
+      ],
+      {}
+    );
 
   const externalTool =
-    header.ExternalTool ||
-    header.externalTool ||
-    header["External Tool"] ||
-    {};
+    getField(
+      header,
+      [
+        "ExternalTool",
+        "External Tool",
+        "externalTool",
+      ],
+      {}
+    );
 
-  /* ==========================================================
+
+  /* ========================================================
      FOOTER / KEY METRICS
-  ========================================================== */
+  ======================================================== */
 
   const metrics =
-    footer.KeyMetrics ||
-    footer.keyMetrics ||
-    footer["Key Metrics"] ||
-    {};
+    getField(
+      footer,
+      [
+        "KeyMetrics",
+        "Key Metrics",
+        "keyMetrics",
+      ],
+      {}
+    );
 
   const getMetric = (
-    camelCaseKey,
-    displayKey,
-    fallbackKeys = []
+    keys,
+    fallback = "--"
   ) => {
-    const possibleKeys = [
-      camelCaseKey,
-      displayKey,
-      ...fallbackKeys,
-    ];
-
-    for (const key of possibleKeys) {
-      const value = metrics[key];
-
-      if (
-        value !== undefined &&
-        value !== null &&
-        value !== ""
-      ) {
-        return value;
-      }
-    }
-
-    return "--";
+    return getField(
+      metrics,
+      keys,
+      fallback
+    );
   };
 
-  const totalCapacity = getMetric(
-    "totalCapacity",
-    "Total Capacity",
-    ["Capacity", "capacity"]
-  );
+  const totalCapacity =
+    getMetric([
+      "totalCapacity",
+      "Total Capacity",
+      "Capacity",
+      "capacity",
+    ]);
 
-  const totalBlocks = getMetric(
-    "totalBlocks",
-    "Total Blocks",
-    ["Blocks", "blocks"]
-  );
+  const totalBlocks =
+    getMetric([
+      "totalBlocks",
+      "Total Blocks",
+      "Blocks",
+      "blocks",
+    ]);
 
-  const totalWTGs = getMetric(
-    "totalWTGs",
-    "Total WTGs",
-    [
+  const totalWTGs =
+    getMetric([
+      "totalWTGs",
+      "Total WTGs",
       "WTGs",
       "Wtgs",
       "wtgs",
       "Total WTG",
-    ]
-  );
+    ]);
 
-  const totalICRs = getMetric(
-    "totalICRs",
-    "Total ICRs",
-    [
+  const totalICRs =
+    getMetric([
+      "totalICRs",
+      "Total ICRs",
       "ICRs",
       "Icrs",
       "icrs",
       "Total ICR",
-    ]
-  );
+    ]);
 
-  /* ==========================================================
+
+  /* ========================================================
      FLIGHT OBSTACLES
-  ========================================================== */
+  ======================================================== */
 
   const rawFlightObstacles =
-    operational.FlightObstacles ??
-    operational.flightObstacles ??
-    [];
+    getField(
+      operational,
+      [
+        "FlightObstacles",
+        "Flight Obstacles",
+        "flightObstacles",
+      ],
+      []
+    );
 
   const flightObstacles =
-    Array.isArray(rawFlightObstacles)
-      ? rawFlightObstacles
-      : (
-          rawFlightObstacles &&
-          typeof rawFlightObstacles === "object"
-        )
-        ? Object.values(rawFlightObstacles)
-        : [];
+    toArray(
+      rawFlightObstacles
+    ).filter(isObject);
 
-  /* ==========================================================
+
+  /* ========================================================
      NEED TO KNOW
-  ========================================================== */
+  ======================================================== */
 
   const rawNeedToKnow =
-    operational.needToKnow ??
-    operational.NeedToKnow ??
-    operational["Need To Know"] ??
-    [];
+    getField(
+      operational,
+      [
+        "needToKnow",
+        "NeedToKnow",
+        "Need To Know",
+      ],
+      []
+    );
 
   const needToKnow =
-    Array.isArray(rawNeedToKnow)
-      ? rawNeedToKnow.filter(
-          (item) =>
-            item &&
-            typeof item === "object"
-        )
-      : (
-          rawNeedToKnow &&
-          typeof rawNeedToKnow === "object"
-        )
-        ? Object.values(rawNeedToKnow).filter(
-            (item) =>
-              item &&
-              typeof item === "object"
-          )
-        : [];
+    toArray(
+      rawNeedToKnow
+    ).filter(isObject);
 
-  /* ==========================================================
-     INCIDENT LOG
-  ========================================================== */
+
+  /* ========================================================
+     INCIDENTS
+  ======================================================== */
 
   const rawIncidents =
-    operational.incidents ??
-    operational.Incidents ??
-    operational["Incident Log"] ??
-    [];
+    getField(
+      operational,
+      [
+        "incidents",
+        "Incidents",
+        "Incident Log",
+      ],
+      []
+    );
 
   const incidents =
-    Array.isArray(rawIncidents)
-      ? rawIncidents.filter(
-          (item) =>
-            item &&
-            typeof item === "object"
-        )
-      : (
-          rawIncidents &&
-          typeof rawIncidents === "object"
-        )
-        ? Object.values(rawIncidents).filter(
-            (item) =>
-              item &&
-              typeof item === "object"
-          )
-        : [];
+    toArray(
+      rawIncidents
+    ).filter(isObject);
 
-  /* ==========================================================
-     MAP NORMALIZATION
 
-     IMPORTANT:
-     Do NOT mix this with operational data.
+  /* ========================================================
+     FLIGHT PARAMETERS
 
-     Firestore screenshot shows:
+     Supports both:
 
-     map
-       ├── imageURL
-       ├── imageFormat
-       ├── resolution
-       └── other map metadata
-  ========================================================== */
+     operational.flightParameters
+
+     operational["Flight Parameters"]
+  ======================================================== */
+
+  const rawFlightParameters =
+    getField(
+      operational,
+      [
+        "flightParameters",
+        "Flight Parameters",
+      ],
+      {}
+    );
+
+  const flightParameters =
+    mapFlightParameters(
+      rawFlightParameters
+    );
+
+
+  /* ========================================================
+     MAP
+  ======================================================== */
 
   const mapImageURL =
-    map.imageURL ||
-    map.imageUrl ||
-    map["Image URL"] ||
-    map.image ||
-    map.mapImageURL ||
-    "";
+    getField(
+      map,
+      [
+        "imageURL",
+        "imageUrl",
+        "Image URL",
+        "image",
+        "mapImageURL",
+        "Map Image URL",
+      ],
+      ""
+    );
 
   const mapKML =
-    map.kml ||
-    map.KML ||
-    map.kmlDriveURL ||
-    map["KML"] ||
-    "";
+    getField(
+      map,
+      [
+        "kml",
+        "KML",
+        "kmlDriveURL",
+        "KML URL",
+      ],
+      ""
+    );
 
   const mapLatitude =
-    map.latitude ??
-    map.Latitude ??
-    map.defaultLatitude ??
-    null;
+    getField(
+      map,
+      [
+        "latitude",
+        "Latitude",
+        "defaultLatitude",
+      ],
+      null
+    );
 
   const mapLongitude =
-    map.longitude ??
-    map.Longitude ??
-    map.defaultLongitude ??
-    null;
+    getField(
+      map,
+      [
+        "longitude",
+        "Longitude",
+        "defaultLongitude",
+      ],
+      null
+    );
 
   const mapZoom =
-    map.zoom ??
-    map.Zoom ??
-    map.defaultZoom ??
-    15;
+    getField(
+      map,
+      [
+        "zoom",
+        "Zoom",
+        "defaultZoom",
+      ],
+      15
+    );
 
-  /* ==========================================================
+
+  /* ========================================================
      RETURN UI OBJECT
-  ========================================================== */
+  ======================================================== */
 
   return {
 
-    /* ========================================================
+    /* ======================================================
        DOCUMENT
-    ======================================================== */
+    ====================================================== */
 
     id:
       data.id ||
       "",
 
-    /* ========================================================
+
+    /* ======================================================
        BASIC SITE INFORMATION
-    ======================================================== */
+    ====================================================== */
 
     name:
-      header.siteName ||
-      header["Site Name"] ||
-      data.siteName ||
-      "",
+      getField(
+        header,
+        [
+          "siteName",
+          "Site Name",
+        ],
+        data.siteName || ""
+      ),
 
     location:
-      location.name ||
-      location["Name"] ||
-      "",
+      getField(
+        location,
+        [
+          "name",
+          "Name",
+        ],
+        ""
+      ),
 
     status:
-      header.status ||
-      header.Status ||
-      "Active",
+      getField(
+        header,
+        [
+          "status",
+          "Status",
+        ],
+        "Active"
+      ),
 
-    /* ========================================================
-       HOME SCREEN METRICS
-    ======================================================== */
+
+    /* ======================================================
+       HOME METRICS
+    ====================================================== */
 
     capacityLabel:
       totalCapacity,
@@ -329,108 +641,216 @@ export function mapSite(doc) {
     idts:
       totalICRs,
 
-    /* ========================================================
+
+    /* ======================================================
        HEADER
-    ======================================================== */
+    ====================================================== */
 
     header: {
 
       siteName:
-        header.siteName ||
-        header["Site Name"] ||
-        "",
+        getField(
+          header,
+          [
+            "siteName",
+            "Site Name",
+          ],
+          ""
+        ),
 
       siteCode:
-        header.siteCode ||
-        header["Site Code"] ||
-        "",
+        getField(
+          header,
+          [
+            "siteCode",
+            "Site Code",
+          ],
+          ""
+        ),
 
       status:
-        header.status ||
-        header.Status ||
-        "Active",
+        getField(
+          header,
+          [
+            "status",
+            "Status",
+          ],
+          "Active"
+        ),
 
       lastUpdated:
-        header["Last Updated"] ||
-        header.lastUpdated ||
-        null,
+        getField(
+          header,
+          [
+            "Last Updated",
+            "lastUpdated",
+          ],
+          null
+        ),
 
       location: {
 
         name:
-          location.name ||
-          location["Name"] ||
-          "",
+          getField(
+            location,
+            [
+              "name",
+              "Name",
+            ],
+            ""
+          ),
 
         latitude:
-          location.latitude ??
-          location.Latitude ??
-          null,
+          getField(
+            location,
+            [
+              "latitude",
+              "Latitude",
+            ],
+            null
+          ),
 
         longitude:
-          location.longitude ??
-          location.Longitude ??
-          null,
+          getField(
+            location,
+            [
+              "longitude",
+              "Longitude",
+            ],
+            null
+          ),
 
         googleMapsLink:
-          location.googleMapsLink ||
-          location["Google Maps Link"] ||
-          "",
+          getField(
+            location,
+            [
+              "googleMapsLink",
+              "Google Maps Link",
+            ],
+            ""
+          ),
       },
 
       internalTools: {
 
         flightHub:
-          internalTools.FlightHub ||
-          internalTools.flightHub ||
-          internalTools["Flight Hub"] ||
-          {},
+          getField(
+            internalTools,
+            [
+              "FlightHub",
+              "flightHub",
+              "Flight Hub",
+            ],
+            {}
+          ),
 
         spectra:
-          internalTools.Spectra ||
-          internalTools.spectra ||
-          {},
+          getField(
+            internalTools,
+            [
+              "Spectra",
+              "spectra",
+            ],
+            {}
+          ),
       },
 
       externalTool: {
 
         spectra:
-          externalTool.Spectra ||
-          externalTool.spectra ||
-          {},
+          getField(
+            externalTool,
+            [
+              "Spectra",
+              "spectra",
+            ],
+            {}
+          ),
       },
     },
 
-    /* ========================================================
+
+    /* ======================================================
        OPERATIONAL
-    ======================================================== */
+    ====================================================== */
 
     operational: {
 
       dockHealth:
-        operational["Dock Health"] ||
-        operational.dockHealth ||
+        getField(
+          operational,
+          [
+            "Dock Health",
+            "dockHealth",
+          ],
+          {}
+        ),
+
+      aircraft: (
+        getField(
+          operational,
+          [
+            "Dock Health",
+          ],
+          {}
+        )
+      )?.Aircraft ||
+        (
+          getField(
+            operational,
+            [
+              "Dock Health",
+            ],
+            {}
+          )
+        )?.aircraft ||
         {},
 
-      aircraft:
-        operational["Dock Health"]?.Aircraft ||
-        operational["Dock Health"]?.aircraft ||
+      battery: (
+        getField(
+          operational,
+          [
+            "Dock Health",
+          ],
+          {}
+        )
+      )?.Battery ||
+        (
+          getField(
+            operational,
+            [
+              "Dock Health",
+            ],
+            {}
+          )
+        )?.battery ||
         {},
 
-      battery:
-        operational["Dock Health"]?.Battery ||
-        operational["Dock Health"]?.battery ||
+      dock: (
+        getField(
+          operational,
+          [
+            "Dock Health",
+          ],
+          {}
+        )
+      )?.Dock ||
+        (
+          getField(
+            operational,
+            [
+              "Dock Health",
+            ],
+            {}
+          )
+        )?.dock ||
         {},
 
-      dock:
-        operational["Dock Health"]?.Dock ||
-        operational["Dock Health"]?.dock ||
-        {},
+      /* ====================================================
+         FINAL FLIGHT PARAMETERS
+      ==================================================== */
 
-      flightParameters:
-        operational["Flight Parameters"] ||
-        operational.flightParameters ||
-        {},
+      flightParameters,
 
       flightObstacles,
 
@@ -439,84 +859,74 @@ export function mapSite(doc) {
       incidents,
 
       infrastructure:
-        operational.Infrastructure ||
-        operational.infrastructure ||
-        {},
+        getField(
+          operational,
+          [
+            "Infrastructure",
+            "infrastructure",
+          ],
+          {}
+        ),
     },
+
+
+    /* ======================================================
+       MAP
+    ====================================================== */
 
     map: {
 
-  /* ------------------------------------------------------
-     PRIMARY SITE MAP IMAGE
+      imageURL:
+        mapImageURL,
 
-     Firestore:
-     map.imageURL
+      imageFormat:
+        getField(
+          map,
+          [
+            "imageFormat",
+            "Image Format",
+          ],
+          ""
+        ),
 
-     Example:
-     https://raw.githubusercontent.com/...
-  ------------------------------------------------------ */
+      resolution:
+        getField(
+          map,
+          [
+            "resolution",
+            "Resolution",
+          ],
+          ""
+        ),
 
-  imageURL:
-    map.imageURL ||
-    map["Image URL"] ||
-    "",
+      image:
+        getField(
+          map,
+          [
+            "image",
+            "mapImageURL",
+            "Map Image URL",
+          ],
+          ""
+        ),
 
+      kml:
+        mapKML,
 
-  /* ------------------------------------------------------
-     IMAGE METADATA
-  ------------------------------------------------------ */
+      latitude:
+        mapLatitude,
 
-  imageFormat:
-    map.imageFormat ||
-    map["Image Format"] ||
-    "",
+      longitude:
+        mapLongitude,
 
-  resolution:
-    map.resolution ||
-    map["Resolution"] ||
-    "",
-
-
-  /* ------------------------------------------------------
-     BACKWARD COMPATIBILITY
-  ------------------------------------------------------ */
-
-  image:
-    map.image ||
-    map.mapImageURL ||
-    map["Map Image URL"] ||
-    "",
-
-  kml:
-    map.kml ||
-    map.kmlDriveURL ||
-    map["KML"] ||
-    "",
+      zoom:
+        mapZoom,
+    },
 
 
-  /* ------------------------------------------------------
-     MAP POSITION
-  ------------------------------------------------------ */
-
-  latitude:
-    map.latitude ??
-    map.defaultLatitude ??
-    null,
-
-  longitude:
-    map.longitude ??
-    map.defaultLongitude ??
-    null,
-
-  zoom:
-    map.zoom ??
-    map.defaultZoom ??
-    15,
-},
-
-    /* ========================================================
+    /* ======================================================
        STAKEHOLDERS
-    ======================================================== */
+    ====================================================== */
 
     stakeholders: {
 
@@ -542,9 +952,10 @@ export function mapSite(doc) {
           : [],
     },
 
-    /* ========================================================
+
+    /* ======================================================
        FOOTER
-    ======================================================== */
+    ====================================================== */
 
     footer: {
 
@@ -561,12 +972,22 @@ export function mapSite(doc) {
 
       activities:
         Array.isArray(
-          footer.Activities ||
-          footer.activities
+          getField(
+            footer,
+            [
+              "Activities",
+              "activities",
+            ],
+            []
+          )
         )
-          ? (
-              footer.Activities ||
-              footer.activities
+          ? getField(
+              footer,
+              [
+                "Activities",
+                "activities",
+              ],
+              []
             )
           : [],
     },

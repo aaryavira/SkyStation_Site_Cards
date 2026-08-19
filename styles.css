@@ -757,8 +757,9 @@ button { cursor: pointer; }
 }
 
 .parameter-icon{
-    width:34px;
-    height:34px;
+    width: 43px !important;
+    height: 43px !important;
+    min-width: 43px;
     border-radius:10px;
     background:var(--surface-alt);
     border:1px solid var(--border-soft);
@@ -768,15 +769,24 @@ button { cursor: pointer; }
     color:var(--accent);
 }
 
+.parameter-row {
+   padding: 15px 16px;
+}
+
 .parameter-row span{
     font-size:13px;
     color:var(--text);
+    font-weight: 600;
 }
 
 .parameter-row strong{
     font-size:13px;
     font-weight:600;
     color:var(--accent);
+}
+
+.parameter-row small {
+  font-weight: 600;
 }
 
 /* ==========================================================
@@ -1010,22 +1020,6 @@ button { cursor: pointer; }
 
 
 /* ==========================================================
-   MAP IMAGE
-   Fills available card area while preserving orientation
-========================================================== */
-
-/* ==========================================================
-   SITE MAP IMAGE
-   Fills the available map area while preserving orientation
-   and providing a clean rounded image boundary.
-========================================================== */
-
-/* ==========================================================
-   SITE MAP IMAGE
-   Full image visible + rounded border
-========================================================== */
-
-/* ==========================================================
    SITE MAP IMAGE
    Larger fit + full map visibility
 ========================================================== */
@@ -1042,7 +1036,7 @@ button { cursor: pointer; }
   object-fit: contain;
   object-position: center;
 
-  transform: rotate(-90deg) scale(3.50);
+  transform: rotate(-90deg) scale(5.8);
   transform-origin: center center;
 
   margin: 0;
@@ -2709,7 +2703,7 @@ Compact card — same typography as other header cards
 
   align-items: stretch;
 
-  padding: 12px 16px;
+  padding: 10px 16px;
 
   border-bottom: 1px solid
     rgba(255, 255, 255, 0.08);
@@ -3005,7 +2999,7 @@ Compact card — same typography as other header cards
 
   box-sizing: border-box;
 
-  padding: 14px 16px;
+  padding: 10px 16px;
 
   border-bottom: 1px solid
     rgba(255, 255, 255, 0.06);
@@ -3213,4 +3207,216 @@ Compact card — same typography as other header cards
   .need-to-know-description {
     width: 100%;
   }
+}
+
+
+
+/* ==========================================================
+   FLIGHT PARAMETERS
+========================================================== */
+
+.parameter-table {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+
+/* ==========================================================
+   DAY / NIGHT SECTION
+========================================================== */
+
+.parameter-operation-section {
+  width: 100%;
+}
+
+.parameter-section-title {
+  padding: 14px 16px 8px;
+
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+
+  color: var(--text);
+}
+
+
+/* ==========================================================
+   PARAMETER ROW
+========================================================== */
+
+.parameter-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 68px;
+
+  padding: 12px 16px;
+
+  gap: 16px;
+
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.parameter-row:last-child {
+  border-bottom: none;
+}
+
+
+/* ==========================================================
+   LEFT SIDE
+   ICON + TITLE + SUBTITLE
+========================================================== */
+
+.parameter-left {
+  display: flex;
+  align-items: center;
+
+  gap: 12px;
+
+  min-width: 0;
+  flex: 1;
+}
+
+
+/* ==========================================================
+   ICON
+========================================================== */
+
+.parameter-icon {
+  width: 43px !important;
+  height: 43px !important;
+  min-width: 43px;
+
+  flex-shrink: 0;
+
+  border-radius: 10px;
+
+  background: var(--surface-alt);
+  border: 1px solid var(--border-soft);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: var(--accent);
+}
+
+
+/* ==========================================================
+   TITLE + SUBTITLE WRAPPER
+
+   This is the important part.
+========================================================== */
+
+.parameter-info {
+  display: flex;
+  flex-direction: column;
+
+  align-items: flex-start;
+  justify-content: center;
+
+  gap: 3px;
+
+  min-width: 0;
+}
+
+
+/* ==========================================================
+   TITLE
+
+   Example:
+   Minimum Flight Altitude
+========================================================== */
+
+.parameter-title {
+  display: block;
+
+  font-size: 13px;
+  line-height: 1.25;
+
+  color: var(--text);
+
+  font-weight: 700;
+}
+
+
+/* ==========================================================
+   SUBTITLE
+
+   Example:
+   Chunk 2
+   All Chunks
+   Block 12 to 17
+========================================================== */
+
+.parameter-subtitle {
+  display: block;
+
+  font-size: 11px;
+  line-height: 1.25;
+
+  color: #f15c26 !important;
+
+  font-weight: 600;
+}
+
+
+/* ==========================================================
+   VALUE
+
+   Example:
+   100 m
+   300 m
+   120 m
+========================================================== */
+
+.parameter-value {
+  display: block;
+
+  flex-shrink: 0;
+
+  min-width: 70px;
+
+  text-align: right;
+
+  white-space: nowrap;
+
+  font-size: 13px;
+
+  line-height: 1.25;
+
+  color: var(--accent);
+
+  font-weight: 700;
+}
+
+
+/* ==========================================================
+   REMOVE OLD GENERIC STYLING
+
+   IMPORTANT:
+   Do NOT use:
+
+   .parameter-row span
+   .parameter-row strong
+   .parameter-row small
+
+   because those selectors override title/subtitle/value
+   independently.
+========================================================== */
+
+
+/* ==========================================================
+   OPTIONAL: SEPARATION BETWEEN DAY & NIGHT
+========================================================== */
+
+.parameter-operation-section
+  + .parameter-operation-section {
+
+  margin-top: 6px;
+
+  border-top: 1px solid var(--border-soft);
 }

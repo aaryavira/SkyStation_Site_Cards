@@ -1,11 +1,11 @@
 import {
   AlertTriangle,
-  Route,
   Trees,
   Building2,
   TowerControl,
   Wind,
   RadioTower,
+  Mountain,
   ExternalLink,
 } from "lucide-react";
 
@@ -15,48 +15,56 @@ export default function ObstaclesCard({ obstacles = {} }) {
     ? obstacles
     : Object.values(obstacles || {});
 
+  /*
+   * Icon decision is based ONLY on Firestore "Type".
+   * Do not use title or Name for icon selection.
+   */
   const getIcon = (item = {}) => {
-  const text = `${item.title || ""} ${item.Name || ""} ${item.Type || ""}`
-    .toLowerCase()
-    .trim();
+    const type = String(item.Type || "")
+      .toLowerCase()
+      .trim();
 
-  if (text.includes("signal")) {
-    return RadioTower;
-  }
+    switch (type) {
+      case "signal loss":
+      case "signal":
+        return RadioTower;
 
-  if (text.includes("cell")) {
-    return TowerControl;
-  }
+      case "cell tower":
+      case "cell":
+        return TowerControl;
 
-  if (text.includes("road")) {
-    return Route;
-  }
+      case "terrain":
+      case "sand dunes":
+      case "sand dune":
+        return Mountain;
 
-  if (text.includes("tree")) {
-    return Trees;
-  }
+      case "road":
+      case "elevated road":
+        return Route;
 
-  if (text.includes("building")) {
-    return Building2;
-  }
+      case "tree":
+      case "trees":
+        return Trees;
 
-  if (text.includes("wind")) {
-    return Wind;
-  }
+      case "building":
+        return Building2;
 
-  if (text.includes("tower")) {
-    return TowerControl;
-  }
+      case "wind":
+      case "wind turbine":
+        return Wind;
 
-  if (
-    text.includes("power line") ||
-    text.includes("transmission")
-  ) {
-    return RadioTower;
-  }
+      case "tower":
+        return TowerControl;
 
-  return AlertTriangle;
-};
+      case "power line":
+      case "transmission":
+        return RadioTower;
+
+      default:
+        return AlertTriangle;
+    }
+  };
+
   return (
     <section className="detail-card">
       <div className="detail-card-header">

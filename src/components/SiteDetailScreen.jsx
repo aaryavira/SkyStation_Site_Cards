@@ -482,7 +482,7 @@ export default function SiteDetailScreen({
 
       </section>
 
-
+          <br></br>
       {/* ======================================================
           INCIDENT LOG
 

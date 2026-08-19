@@ -1,10 +1,15 @@
 import {
+  Box,
+  PlaneLanding,
+  RadioTower,
+  TowerControl,
   House,
   Mountain,
-  RadioTower,
+  Moon,
   PlaneTakeoff,
   Info,
 } from "lucide-react";
+
 
 /* ==========================================================
    NEED TO KNOW CARD
@@ -18,94 +23,279 @@ import {
    Expected Firestore object:
 
    {
-     id: "1",
-     location: "Near Block 10",
-     title: "Village Area",
+     id: "0",
+     title: "SkyStation-4 Location",
+     location: "SkyStation V3",
      description: "..."
    }
 
    IMPORTANT:
    - Firestore controls DATA.
    - Frontend controls ICONS / UI / formatting.
-   - This component does NOT modify Site Map or parent layout.
+   - Icons are resolved semantically from the title.
+   - Firestore ID is used only as a legacy fallback.
+   - Row position/index NEVER determines the icon.
 ========================================================== */
 
 
 /* ==========================================================
-   ICON MAPPING
+   SEMANTIC TITLE ICON MAPPING
 
-   Icons are intentionally controlled by frontend.
+   PRIMARY ICON SOURCE
 
-   ID-based mapping is used as the primary mapping so that
-   changing a title in Firestore does not accidentally change
-   the visual meaning of an existing operational item.
+   The title determines the operational meaning.
+
+   This allows the same component to work across
+   multiple sites without depending on row order.
 ========================================================== */
 
-const NEED_TO_KNOW_ICONS = {
-  "1": House,
-  "2": Mountain,
-  "3": RadioTower,
-  "4": PlaneTakeoff,
-};
+const NEED_TO_KNOW_TITLE_ICONS = Object.freeze({
+
+  /* --------------------------------------------------------
+     INFRASTRUCTURE
+  -------------------------------------------------------- */
+
+  "SkyStation-4 Location":
+    Box,
+
+  "Alternate Landing Point":
+    PlaneLanding,
+
+  "Relay Station":
+    RadioTower,
+
+  "Cell Tower":
+    TowerControl,
+
+
+  /* --------------------------------------------------------
+     HUMAN / VILLAGE
+  -------------------------------------------------------- */
+
+  "Dense Village Area":
+    House,
+
+  "Village Area":
+    House,
+
+  "Village & Community Area":
+    House,
+
+
+  /* --------------------------------------------------------
+     TERRAIN
+  -------------------------------------------------------- */
+
+  "Terrain Elevation Variation":
+    Mountain,
+
+
+  /* --------------------------------------------------------
+     SIGNAL
+  -------------------------------------------------------- */
+
+  "Recurring Signal Loss":
+    RadioTower,
+
+
+  /* --------------------------------------------------------
+     FLIGHT RANGE
+  -------------------------------------------------------- */
+
+  "Extended Flight Distance":
+    PlaneTakeoff,
+
+  "Extended Flight Distance Chunk 1":
+    PlaneTakeoff,
+
+
+  /* --------------------------------------------------------
+     NIGHT OPERATIONS
+  -------------------------------------------------------- */
+
+  "Night Inspection":
+    Moon,
+
+  "Night Inspection Recommended":
+    Moon,
+
+  "Recommended Night Inspection":
+    Moon,
+
+  "Recommended Night Inspection Blocks 12, 13 & 14":
+    Moon,
+
+});
 
 
 /* ==========================================================
-   TITLE FALLBACK MAPPING
+   LEGACY FIRESTORE ID ICON MAPPING
 
-   Used if an item does not have a valid ID.
+   Used ONLY when:
+   - title is missing
+   - title is unknown
+
+   Existing zero-based IDs are preserved.
+
+   0 → House
+   1 → Mountain
+   2 → RadioTower
+   3 → PlaneTakeoff
+   4 → Moon
 ========================================================== */
 
-const NEED_TO_KNOW_TITLE_ICONS = {
-  "Village Area": House,
-  "Village & Community Area": House,
+const NEED_TO_KNOW_ID_ICONS = Object.freeze({
 
-  "Terrain Elevation Variation": Mountain,
+  "0": House,
+  "1": Mountain,
+  "2": RadioTower,
+  "3": PlaneTakeoff,
+  "4": Moon,
 
-  "Recurring Signal Loss": RadioTower,
-
-  "Extended Flight Distance": PlaneTakeoff,
-};
+});
 
 
 /* ==========================================================
-   GET ICON
+   NORMALIZE TITLE
 
-   Priority:
-   1. ID
-   2. Title
-   3. Generic Info icon
+   Makes semantic matching more reliable.
+
+   Example:
+
+   " Dense Village Area "
+        ↓
+   "dense village area"
+========================================================== */
+
+function normalizeTitle(value) {
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+}
+
+
+/* ==========================================================
+   NORMALIZED TITLE ICON MAP
+
+   Prevents capitalization / spacing issues.
+========================================================== */
+
+const NORMALIZED_TITLE_ICONS =
+  Object.freeze(
+
+    Object.entries(
+      NEED_TO_KNOW_TITLE_ICONS
+    ).reduce(
+      (map, [title, icon]) => {
+
+        map[
+          normalizeTitle(title)
+        ] = icon;
+
+        return map;
+
+      },
+      {}
+    )
+
+  );
+
+
+/* ==========================================================
+   GET NEED TO KNOW ICON
+
+   PRIORITY:
+
+   1. Semantic title
+   2. Legacy Firestore ID
+   3. Generic Info
+
+   IMPORTANT:
+   Row index is NEVER used.
 ========================================================== */
 
 function getNeedToKnowIcon(item) {
 
-  if (!item || typeof item !== "object") {
+  if (
+    !item ||
+    typeof item !== "object"
+  ) {
+
     return Info;
+
   }
+
+
+  /* --------------------------------------------------------
+     1. TITLE-BASED RESOLUTION
+  -------------------------------------------------------- */
+
+  const normalizedTitle =
+    normalizeTitle(item.title);
+
+
+  if (
+    normalizedTitle &&
+    Object.prototype.hasOwnProperty.call(
+      NORMALIZED_TITLE_ICONS,
+      normalizedTitle
+    )
+  ) {
+
+    return NORMALIZED_TITLE_ICONS[
+      normalizedTitle
+    ];
+
+  }
+
+
+  /* --------------------------------------------------------
+     2. LEGACY FIRESTORE ID FALLBACK
+  -------------------------------------------------------- */
 
   const id =
     item.id !== undefined &&
     item.id !== null
-      ? String(item.id)
+      ? String(item.id).trim()
       : "";
 
-  if (NEED_TO_KNOW_ICONS[id]) {
-    return NEED_TO_KNOW_ICONS[id];
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      NEED_TO_KNOW_ID_ICONS,
+      id
+    )
+  ) {
+
+    return NEED_TO_KNOW_ID_ICONS[id];
+
   }
 
-  const title =
-    typeof item.title === "string"
-      ? item.title.trim()
-      : "";
 
-  return (
-    NEED_TO_KNOW_TITLE_ICONS[title] ||
-    Info
-  );
+  /* --------------------------------------------------------
+     3. SAFE DEFAULT
+  -------------------------------------------------------- */
+
+  return Info;
+
 }
 
 
 /* ==========================================================
    SAFE TEXT FORMATTER
+
+   Prevents accidental rendering of:
+   - objects
+   - arrays
+   - null
+   - undefined
 ========================================================== */
 
 function formatText(value) {
@@ -115,17 +305,24 @@ function formatText(value) {
     value === undefined ||
     value === ""
   ) {
+
     return "--";
+
   }
+
 
   if (
     typeof value === "string" ||
     typeof value === "number"
   ) {
+
     return String(value);
+
   }
 
+
   return "--";
+
 }
 
 
@@ -134,33 +331,44 @@ function formatText(value) {
 ========================================================== */
 
 export default function NeedToKnowCard({
+
   needToKnow = [],
+
 }) {
+
 
   /* ========================================================
      SAFE ARRAY
 
-     Prevents UI failure if Firestore temporarily returns
-     undefined, null, or malformed data.
+     Protects UI from malformed Firestore data.
   ======================================================== */
 
-  const items = Array.isArray(needToKnow)
-    ? needToKnow.filter(
-        (item) =>
-          item &&
-          typeof item === "object"
-      )
-    : [];
+  const items =
+    Array.isArray(needToKnow)
+
+      ? needToKnow.filter(
+          (item) =>
+            item &&
+            typeof item === "object"
+        )
+
+      : [];
 
 
   return (
-    <section className="detail-card need-to-know-card">
+
+    <section
+      className="detail-card need-to-know-card"
+    >
+
 
       {/* ====================================================
           HEADER
       ==================================================== */}
 
-      <div className="detail-card-header">
+      <div
+        className="detail-card-header"
+      >
 
         <h3>
 
@@ -184,7 +392,9 @@ export default function NeedToKnowCard({
 
       {items.length === 0 ? (
 
-        <div className="need-to-know-empty">
+        <div
+          className="need-to-know-empty"
+        >
 
           <Info
             size={18}
@@ -199,39 +409,75 @@ export default function NeedToKnowCard({
 
       ) : (
 
+
         /* ==================================================
            LIST
         ================================================== */
 
-        <div className="need-to-know-list">
+        <div
+          className="need-to-know-list"
+        >
 
           {items.map(
             (item, index) => {
 
+
+              /* --------------------------------------------
+                 SEMANTIC ICON RESOLUTION
+
+                 IMPORTANT:
+                 NEVER use index here.
+              -------------------------------------------- */
+
               const Icon =
                 getNeedToKnowIcon(item);
+
+
+              /* --------------------------------------------
+                 STABLE KEY
+
+                 Prefer Firestore ID.
+
+                 If ID is unavailable, construct a stable
+                 fallback from title + index.
+              -------------------------------------------- */
 
               const itemId =
                 item.id !== undefined &&
                 item.id !== null &&
                 item.id !== ""
+
                   ? String(item.id)
-                  : `need-to-know-${index}`;
+
+                  : `need-to-know-${normalizeTitle(
+                      item.title
+                    )}-${index}`;
 
 
               return (
+
                 <div
                   className="need-to-know-row"
                   key={itemId}
                 >
 
+
                   {/* ========================================
                       LEFT SECTION
                   ======================================== */}
 
-                  <div className="need-to-know-left">
+                  <div
+                    className="need-to-know-left"
+                  >
 
-                    <div className="need-to-know-icon">
+
+                    {/* ======================================
+                        ICON
+                    ====================================== */}
+
+                    <div
+                      className="need-to-know-icon"
+                    >
 
                       <Icon
                         size={18}
@@ -242,9 +488,20 @@ export default function NeedToKnowCard({
                     </div>
 
 
-                    <div className="need-to-know-meta">
+                    {/* ======================================
+                        TITLE + SUB TITLE
+                    ====================================== */}
 
-                      <div className="need-to-know-title">
+                    <div
+                      className="need-to-know-meta"
+                    >
+
+                      <div
+                        className="need-to-know-title"
+                        title={formatText(
+                          item.title
+                        )}
+                      >
 
                         {formatText(
                           item.title
@@ -253,7 +510,12 @@ export default function NeedToKnowCard({
                       </div>
 
 
-                      <div className="need-to-know-location">
+                      <div
+                        className="need-to-know-location"
+                        title={formatText(
+                          item.location
+                        )}
+                      >
 
                         {formatText(
                           item.location
@@ -270,7 +532,9 @@ export default function NeedToKnowCard({
                       DESCRIPTION
                   ======================================== */}
 
-                  <div className="need-to-know-description">
+                  <div
+                    className="need-to-know-description"
+                  >
 
                     {formatText(
                       item.description
@@ -278,7 +542,9 @@ export default function NeedToKnowCard({
 
                   </div>
 
+
                 </div>
+
               );
 
             }
@@ -289,5 +555,7 @@ export default function NeedToKnowCard({
       )}
 
     </section>
+
   );
+
 }
