@@ -328,35 +328,64 @@ export default function SiteDetailScreen({
       {/* ======================================================
           MAIN OPERATIONAL LAYOUT
 
-          LEFT:
-          Site Map
+          LEFT COLUMN:
+            1. Site Map
+            2. Need to Know
 
-          RIGHT:
-          Pilot Operations
+          RIGHT COLUMN:
+            1. Flight Parameters
+            2. Flight Obstacles
 
           IMPORTANT:
-          Incident Log is intentionally NOT inside this
-          layout anymore.
+          Existing components, Firestore connections and
+          data structures remain unchanged.
       ====================================================== */}
 
       <div className="mission-layout">
 
 
         {/* ====================================================
-            LEFT COLUMN : SITE MAP
+            LEFT COLUMN
+            SITE MAP + NEED TO KNOW
         ==================================================== */}
 
         <div className="map-column">
 
-          <SiteMapCard
-            site={site}
-          />
+
+          {/* ==================================================
+              SITE MAP
+          ================================================== */}
+
+          <div className="body-card">
+
+            <SiteMapCard
+              site={site}
+            />
+
+          </div>
+
+
+          {/* ==================================================
+              NEED TO KNOW
+          ================================================== */}
+
+          <div className="body-card">
+
+            <NeedToKnowCard
+              needToKnow={
+                needToKnow
+              }
+            />
+
+          </div>
+
 
         </div>
 
 
         {/* ====================================================
-            RIGHT COLUMN : OPERATIONS
+            RIGHT COLUMN
+            FLIGHT PARAMETERS + FLIGHT OBSTACLES
         ==================================================== */}
 
         <div className="operations-column">
@@ -379,21 +408,6 @@ export default function SiteDetailScreen({
 
 
           {/* ==================================================
-              NEED TO KNOW
-          ================================================== */}
-
-          <div className="body-card">
-
-            <NeedToKnowCard
-              needToKnow={
-                needToKnow
-              }
-            />
-
-          </div>
-
-
-          {/* ==================================================
               FLIGHT OBSTACLES
           ================================================== */}
 
@@ -409,30 +423,40 @@ export default function SiteDetailScreen({
           </div>
 
 
-          {/* ==================================================
-              DOCK HEALTH
-          ================================================== */}
-
-          <div className="body-card">
-
-            <HealthCard
-              dockHealth={
-                site?.operational
-                  ?.dockHealth
-              }
-            />
-
-          </div>
-
-
         </div>
+
+
+      </div>
+
+
+      {/* ======================================================
+          DOCK HEALTH
+
+          Full-width section below the main two-column
+          operational layout.
+      ====================================================== */}
+
+      <br />
+
+      <div className="body-card">
+
+        <HealthCard
+          dockHealth={
+            site?.operational
+              ?.dockHealth
+          }
+        />
 
       </div>
 
 
       {/* ======================================================
           ACTIVITIES ON SITE
+
+          Positioned directly below Dock Health.
       ====================================================== */}
+
+      <br />
 
       <section
         className="sc-section intelligence-card"
@@ -482,19 +506,17 @@ export default function SiteDetailScreen({
 
       </section>
 
-          <br></br>
+
       {/* ======================================================
           INCIDENT LOG
 
-          NEW POSITION:
-          Below:
-            1. Site Map
-            2. Dock Health / Operations
-            3. Activities on Site
+          Remains below Activities on Site.
 
           IMPORTANT:
-          Data source and component remain unchanged.
+          Data source remains unchanged.
       ====================================================== */}
+
+      <br />
 
       <div className="body-card">
 
@@ -509,6 +531,8 @@ export default function SiteDetailScreen({
 
       {/* ======================================================
           SITE STAKEHOLDERS
+
+          Remains at the bottom.
       ====================================================== */}
 
       <br />
@@ -521,5 +545,6 @@ export default function SiteDetailScreen({
 
 
     </section>
+
   );
 }
