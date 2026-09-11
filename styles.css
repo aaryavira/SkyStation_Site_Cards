@@ -949,121 +949,89 @@ button { cursor: pointer; }
 ========================================================== */
 
 /* ==========================================================
-   SITE MAP HEADER
-   Match Flight Parameters title sizing
+   SITE MAP CARD
+   ----------------------------------------------------------
+   Layout:
+
+   Outer Site Map Card Border
+       ↓
+   4px Breathing Space
+       ↓
+   Inner Image Border
+       ↓
+   Responsive Site Map Image
 ========================================================== */
-
-.panel-header {
-  width: 100%;
-  box-sizing: border-box;
-
-  display: flex;
-  align-items: center;
-
-  padding: 16px 18px;
-}
-
-.panel-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.panel-title span {
- font-size: 16px;
-  font-weight: 700;
-  line-height: 1.2;
-}
 
 
 /* ==========================================================
-   SPACE BETWEEN CARD HEADER & MAP
+   OUTER SITE MAP CARD
 ========================================================== */
 
-.site-map-frame {
+.site-map-card {
   width: 100%;
-  box-sizing: border-box;
-
-  /* breathing room around the map */
-  padding: 0 10px 10px 10px;
-}
-
-
-/* ==========================================================
-   MAP IMAGE VIEWPORT
-   Proper spacing + rounded image frame
-========================================================== */
-.site-map-container {
-  width: 100%;
-  aspect-ratio: 2281 / 2335;
+  max-width: 100%;
 
   min-width: 0;
   min-height: 0;
-
-  position: relative;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  box-sizing: border-box;
-
-  /* 15px breathing space around the image */
-  padding: 15px;
-
-  overflow: hidden;
-
-  border-radius: 12px;
-}
-
-
-/* ==========================================================
-   SITE MAP IMAGE
-   Larger fit + full map visibility
-========================================================== */
-
-
-
-
-/* ==========================================================
-   SITE MAP PANEL
-   Keeps the card height controlled and prevents
-   neighbouring cards from affecting the map.
-========================================================== */
-
-.panel:has(.site-map-container) {
-  width: 100%;
-  height: auto;
-  min-width: 0;
 
   display: flex;
   flex-direction: column;
 
   box-sizing: border-box;
-  overflow: hidden;
+
+  /*
+   * OUTER BORDER
+   *
+   * This is the only border around the complete
+   * Site Map card.
+   */
+  border: 1px solid var(--border-soft);
 
   border-radius: 16px;
+
+  background: var(--surface);
+
+  /*
+   * Prevent content from escaping the card.
+   */
+  overflow: hidden;
 }
 
-.sit/* ==========================================================
-   SITE MAP CONTENT SAFETY
-   Keeps any map content inside its parent container.
+
+/* ==========================================================
+   SITE MAP CARD HEADER
 ========================================================== */
 
-.site-map {
+.site-map-card-header {
   width: 100%;
-  height: 100%;
 
-  min-width: 0;
-  min-height: 0;
-
-  position: relative;
-
-  z-index: 1;
+  display: flex;
+  align-items: center;
 
   box-sizing: border-box;
 
-  overflow: hidden;
+  padding: 16px 18px;
+}
+
+
+/* ==========================================================
+   SITE MAP CARD TITLE
+========================================================== */
+
+.site-map-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  min-width: 0;
+
+  color: var(--text);
+}
+
+.site-map-card-title span {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 
@@ -1071,7 +1039,7 @@ button { cursor: pointer; }
    SITE MAP HEADER ICON
 ========================================================== */
 
-.panel-title svg {
+.site-map-card-title svg {
   width: 34px;
   height: 34px;
 
@@ -1093,16 +1061,175 @@ button { cursor: pointer; }
   color: var(--accent);
 }
 
+
 /* ==========================================================
-   SITE MAP LOADING / ERROR OVERLAY
+   MAP CONTENT WRAPPER
+   ----------------------------------------------------------
+   This creates the breathing space between:
+
+   1. Outer Site Map card border
+   2. Inner image border
+
+   Current spacing: 4px + normal content spacing
+========================================================== */
+
+.site-map-card-content {
+  width: 100%;
+  max-width: 100%;
+
+  min-width: 0;
+
+  box-sizing: border-box;
+
+  /*
+   * 4px breathing space from the outer card area.
+   */
+  padding: 4px 14px 14px;
+}
+
+
+/* ==========================================================
+   INNER IMAGE FRAME
+   ----------------------------------------------------------
+   This is the second border requested by you.
+
+   The frame:
+   - Adapts to the image's natural aspect ratio
+   - Does not use Baiya-specific dimensions
+   - Does not crop the image
+   - Does not stretch the image
+========================================================== */
+
+.site-map-image-frame {
+  position: relative;
+
+  width: 100%;
+  max-width: 100%;
+
+  min-width: 0;
+
+  /*
+   * Temporary minimum height while loading or when no
+   * image is available.
+
+   Once the image loads, the natural image height takes
+   over through .is-loaded.
+   */
+  min-height: 240px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+
+  /*
+   * INNER BORDER
+   */
+  border: 1px solid var(--border-soft);
+
+  border-radius: 14px;
+
+  background: var(--surface);
+
+  /*
+   * Keep the image and overlays inside the inner frame.
+   */
+  overflow: hidden;
+
+  /*
+   * No fixed aspect-ratio.
+   *
+   * This is important for dynamic site maps.
+   */
+  aspect-ratio: auto;
+
+  transition:
+    min-height 0.2s ease,
+    border-radius 0.2s ease;
+}
+
+
+/* ==========================================================
+   REMOVE LOADING MINIMUM HEIGHT AFTER IMAGE LOAD
+========================================================== */
+
+.site-map-image-frame.is-loaded {
+  min-height: 0;
+}
+
+
+/* ==========================================================
+   SITE MAP IMAGE
+   ----------------------------------------------------------
+   Dynamic image behaviour:
+
+   - Width follows the available card width
+   - Height follows the original image ratio
+   - Image remains centered
+   - No cropping
+   - No distortion
+   - No fixed Baiya ratio
+========================================================== */
+
+.site-map-image {
+  display: block;
+
+  width: 100%;
+  height: auto;
+
+  max-width: 100%;
+  min-width: 0;
+
+  /*
+   * Preserve the original image proportions.
+   */
+  object-fit: contain;
+  object-position: center center;
+
+  /*
+   * Center the image.
+   */
+  margin: 0 auto;
+
+  /*
+   * Remove inline image baseline spacing.
+   */
+  vertical-align: middle;
+
+  /*
+   * The frame owns the inner border.
+   * The image must not create a third border.
+   */
+  border: none;
+  border-radius: 0;
+
+  /*
+   * Browser-native image rendering.
+   */
+  image-rendering: auto;
+}
+
+
+/* ==========================================================
+   IMAGE WRAPPER SAFETY
+========================================================== */
+
+.site-map-image-frame img {
+  flex-shrink: 0;
+}
+
+
+/* ==========================================================
+   LOADING / ERROR OVERLAY
 ========================================================== */
 
 .map-overlay {
   position: absolute;
 
-  inset: 6px;
+  inset: 0;
 
-  z-index: 999;
+  z-index: 10;
 
   display: flex;
   flex-direction: column;
@@ -1116,9 +1243,9 @@ button { cursor: pointer; }
 
   box-sizing: border-box;
 
-  border-radius: 12px;
+  border-radius: inherit;
 
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.84);
 
   backdrop-filter: blur(4px);
 
@@ -1131,15 +1258,63 @@ button { cursor: pointer; }
 }
 
 .dark .map-overlay {
-  background: rgba(20, 22, 27, 0.82);
+  background: rgba(20, 22, 27, 0.84);
 }
 
-.dark .map-overlay{
-    background:rgba(20,22,27,.82);
-}
 
 /* ==========================================================
-   SITE MAP LOADING ANIMATION
+   NO IMAGE PLACEHOLDER
+========================================================== */
+
+.map-placeholder {
+  width: 100%;
+  min-height: 240px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  padding: 24px;
+
+  box-sizing: border-box;
+
+  color: var(--muted);
+
+  text-align: center;
+}
+
+.map-placeholder svg {
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.map-placeholder h3 {
+  margin: 0;
+
+  color: var(--text);
+
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.map-placeholder p {
+  max-width: 280px;
+
+  margin: 0;
+
+  color: var(--muted);
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+
+/* ==========================================================
+   LOADING ANIMATION
 ========================================================== */
 
 .spin {
@@ -1162,80 +1337,141 @@ button { cursor: pointer; }
   }
 }
 
-.map-footer{
-    margin-top:16px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:20px;
-    flex-wrap:wrap;
-}
-
-.map-footer strong{
-    display:block;
-    margin-bottom:4px;
-    color:var(--text);
-    font-size:14px;
-}
-
-.map-footer p{
-    margin:0;
-    color:var(--muted);
-    font-size:13px;
-    line-height:1.5;
-}
-
-.map-link{
-    display:inline-flex;
-    align-items:center;
-    gap:6px;
-    color:var(--accent);
-    text-decoration:none;
-    font-size:13px;
-    font-weight:600;
-    transition:.2s;
-}
-
-.map-link:hover{
-    opacity:.75;
-}
-
-.site-map .leaflet-control-zoom{
-    border:none !important;
-    box-shadow:0 8px 20px rgba(0,0,0,.12);
-    overflow:hidden;
-    border-radius:10px;
-}
-
-.site-map .leaflet-control-zoom a{
-    width:34px;
-    height:34px;
-    line-height:34px;
-    border:none;
-    color:var(--text);
-    background:var(--surface);
-}
-
-.site-map .leaflet-control-attribution{
-    display:none;
-}
 
 /* ==========================================================
-   SITE MAP FOOTER
-   ========================================================== */
+   OPTIONAL SITE MAP FOOTER
+   ----------------------------------------------------------
+   Retained for compatibility if your application uses it.
+========================================================== */
 
 .map-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 
-    padding: 12px 16px;
+  gap: 16px;
+  flex-wrap: wrap;
 
-    border-top: 1px solid rgba(0,0,0,0.08);
+  padding: 12px 16px;
 
-    gap: 16px;
+  margin-top: 16px;
+
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.map-footer strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: var(--text);
+
+  font-size: 14px;
+}
+
+.map-footer p {
+  margin: 0;
+
+  color: var(--muted);
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  color: var(--accent);
+  text-decoration: none;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  transition: opacity 0.2s ease;
+}
+
+.map-link:hover {
+  opacity: 0.75;
+}
+
+
+/* ==========================================================
+   RESPONSIVE TABLET STYLES
+========================================================== */
+
+@media (max-width: 768px) {
+
+  .site-map-card {
+    border-radius: 14px;
+  }
+
+  .site-map-card-header {
+    padding: 14px 14px;
+  }
+
+  .site-map-card-content {
+    padding: 4px 10px 10px;
+  }
+
+  .site-map-image-frame {
+    min-height: 220px;
+    border-radius: 12px;
+  }
+
+  .site-map-card-title {
+    gap: 10px;
+  }
+
+  .site-map-card-title span {
+    font-size: 15px;
+  }
+
+  .site-map-card-title svg {
+    width: 32px;
+    height: 32px;
+  }
+
+}
+
+
+/* ==========================================================
+   RESPONSIVE MOBILE STYLES
+========================================================== */
+
+@media (max-width: 480px) {
+
+  .site-map-card {
+    border-radius: 12px;
+  }
+
+  .site-map-card-header {
+    padding: 12px;
+  }
+
+  .site-map-card-content {
+    padding: 3px 6px 6px;
+  }
+
+  .site-map-image-frame {
+    min-height: 190px;
+    border-radius: 10px;
+  }
+
+  .site-map-placeholder {
+    min-height: 190px;
+  }
+
+  .site-map-card-title {
+    gap: 8px;
+  }
+
+  .site-map-card-title span {
+    font-size: 15px;
+  }
+
+}
 
 
 /* LEFT SECTION */
@@ -2857,19 +3093,6 @@ Compact card — same typography as other header cards
 }
 
 
-/* ==========================================================
-   LEFT — SITE MAP
-   ========================================================== */
-
-.map-column {
-  width: 100%;
-  min-width: 0;
-
-  position: relative;
-
-  overflow: hidden;
-}
-
 
 /* ==========================================================
    RIGHT — OPERATIONS
@@ -2914,7 +3137,6 @@ Compact card — same typography as other header cards
   box-sizing: border-box;
 
   overflow: hidden;
-  
 }
 
 
@@ -3104,31 +3326,7 @@ Compact card — same typography as other header cards
 }
 
 
-/* ==========================================================
-   SITE MAP CARD SAFETY
-   Keeps map card width independent from neighbouring cards
-========================================================== */
 
-.map-column {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-
-  display: flex;
-  flex-direction: column;
-
-  box-sizing: border-box;
-}
-
-.map-column > * {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-
-  box-sizing: border-box;
-
-  flex-shrink: 0;
-}
 
 
 /* ==========================================================
@@ -3375,6 +3573,7 @@ Compact card — same typography as other header cards
 
 .site-map-image {
   display: block;
+
   width: 100%;
   height: 100%;
 
@@ -3385,7 +3584,6 @@ Compact card — same typography as other header cards
   object-position: center center;
 
   transform: none !important;
-  transform-origin: center center;
 
   margin: 0;
   padding: 0;
@@ -3397,4 +3595,3 @@ Compact card — same typography as other header cards
 
   background: var(--surface);
 }
-

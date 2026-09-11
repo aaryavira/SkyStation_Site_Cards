@@ -18,10 +18,11 @@ import {
 
    Frontend controls:
    - title
-   - default icon
+   - icon
 ========================================================== */
 
 const PARAMETER_CONFIG = {
+
   minimumFlightAltitude: {
     title: "Minimum Flight Altitude",
     icon: PlaneLanding,
@@ -41,22 +42,19 @@ const PARAMETER_CONFIG = {
     title: "RTH Altitude",
     icon: Home,
   },
+
 };
 
 
 /* ==========================================================
    CREATE PARAMETER ROW
-
-   Special case:
-   Stockyard Area → Warehouse icon
-
-   Everything else uses the normal parameter icon.
 ========================================================== */
 
 function createParameterRow(
   type,
   parameter
 ) {
+
   if (
     !parameter ||
     typeof parameter !== "object"
@@ -64,27 +62,22 @@ function createParameterRow(
     return null;
   }
 
+
   const config =
     PARAMETER_CONFIG[type];
+
 
   if (!config) {
     return null;
   }
 
 
-  /* --------------------------------------------------------
-     ICON SELECTION
-
-     Default:
-       minimumFlightAltitude → PlaneLanding
-       maximumFlightAltitude → PlaneTakeoff
-       safeAltitude          → ShieldCheck
-       rthAltitude           → Home
-
-     Special:
-       stockyard → Warehouse
-  -------------------------------------------------------- */
-
+  /*
+   * Default icon comes from parameter configuration.
+   *
+   * Existing special-case support:
+   * stockyard → Warehouse
+   */
   const Icon =
     parameter.id === "stockyard"
       ? Warehouse
@@ -92,6 +85,7 @@ function createParameterRow(
 
 
   return {
+
     id:
       parameter.id ||
       type,
@@ -100,10 +94,12 @@ function createParameterRow(
       config.title,
 
     subtitle:
-      parameter.subtitle || "",
+      parameter.subtitle ||
+      "",
 
     value:
-      parameter.value || "--",
+      parameter.value ||
+      "--",
 
     icon:
       Icon,
@@ -113,22 +109,42 @@ function createParameterRow(
 
 /* ==========================================================
    BUILD PARAMETER ROWS
+==========================================================
 
-   Handles both:
+   Supports:
 
-   Single parameter:
-     safeAltitude
-     rthAltitude
-     maximumFlightAltitude
+   SINGLE PARAMETER
 
-   Array parameter:
-     minimumFlightAltitude[]
+   {
+     id,
+     subtitle,
+     value
+   }
+
+
+   MULTIPLE PARAMETERS
+
+   [
+     {
+       id,
+       subtitle,
+       value
+     },
+
+     {
+       id,
+       subtitle,
+       value
+     }
+   ]
+
 ========================================================== */
 
 function buildRows(
   operations = {},
   parameterTypes = []
 ) {
+
   const rows = [];
 
 
@@ -137,6 +153,16 @@ function buildRows(
 
       const parameter =
         operations?.[type];
+
+
+      /*
+       * Parameter does not exist.
+       */
+      if (
+        !parameter
+      ) {
+        return;
+      }
 
 
       /* ----------------------------------------------------
@@ -156,12 +182,14 @@ function buildRows(
                 item
               );
 
+
             if (row) {
               rows.push(row);
             }
 
           }
         );
+
 
         return;
       }
@@ -177,6 +205,7 @@ function buildRows(
           parameter
         );
 
+
       if (row) {
         rows.push(row);
       }
@@ -190,7 +219,7 @@ function buildRows(
 
 
 /* ==========================================================
-   PARAMETER ROW COMPONENT
+   PARAMETER ROW
 ========================================================== */
 
 function ParameterRow({
@@ -206,7 +235,6 @@ function ParameterRow({
 
       {/* ====================================================
           LEFT SIDE
-          Icon + Title + Subtitle
       ==================================================== */}
 
       <div className="parameter-left">
@@ -259,10 +287,6 @@ function ParameterRow({
 
 /* ==========================================================
    OPERATIONS SECTION
-
-   Used for:
-   - Day Operations
-   - Night Operations
 ========================================================== */
 
 function OperationsSection({
@@ -271,7 +295,7 @@ function OperationsSection({
 }) {
 
   /*
-   * Don't render an empty section.
+   * Don't render empty operation sections.
    */
 
   if (
@@ -324,12 +348,14 @@ export default function ParametersCard({
   parameters = {},
 }) {
 
+
   /* ========================================================
      DAY OPERATIONS
   ======================================================== */
 
   const dayOperations =
-    parameters?.dayOperations || {};
+    parameters?.dayOperations ||
+    {};
 
 
   const dayRows =
@@ -349,7 +375,8 @@ export default function ParametersCard({
   ======================================================== */
 
   const nightOperations =
-    parameters?.nightOperations || {};
+    parameters?.nightOperations ||
+    {};
 
 
   const nightRows =
@@ -357,6 +384,9 @@ export default function ParametersCard({
       nightOperations,
       [
         "minimumFlightAltitude",
+        "maximumFlightAltitude",
+        "safeAltitude",
+        "rthAltitude",
       ]
     );
 

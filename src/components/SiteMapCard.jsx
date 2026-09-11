@@ -14,22 +14,27 @@ import {
    Data Source:
    site.map.imageURL
 
-   Firestore
+   Firestore:
    Site
      └── map
           └── imageURL
 
-   IMPORTANT:
-   - Firestore controls the image URL.
-   - Supports direct image URLs such as:
-     GitHub RAW
-     CDN
-     Google Drive thumbnail
-     Other public image URLs
-   - No URL conversion is performed.
+   Design Behaviour:
+   - Outer border around complete Site Map card
+   - 4px breathing space around image frame
+   - Inner border around actual image
+   - Dynamic image dimensions
+   - No fixed aspect ratio
+   - No image cropping
+   - No image stretching
+   - Supports GitHub RAW, CDN and public image URLs
 ========================================================== */
 
 export default function SiteMapCard({ site }) {
+
+  /* ========================================================
+     STATE
+  ======================================================== */
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +53,7 @@ export default function SiteMapCard({ site }) {
   /* ========================================================
      IMAGE URL
 
-     SiteMapper.js provides:
+     siteMapper.js provides:
      site.map.imageURL
   ======================================================== */
 
@@ -69,7 +74,24 @@ export default function SiteMapCard({ site }) {
 
 
   /* ========================================================
+     SITE NAME FOR ACCESSIBILITY
+  ======================================================== */
+
+  const siteName = useMemo(() => {
+
+    return (
+      site?.header?.siteName ||
+      site?.name ||
+      "Site"
+    );
+
+  }, [site]);
+
+
+  /* ========================================================
      IMAGE STATE RESET
+
+     Runs whenever Firestore provides a new image URL.
   ======================================================== */
 
   useEffect(() => {
@@ -121,16 +143,18 @@ export default function SiteMapCard({ site }) {
 
   return (
 
-    <section className="panel">
-
+    <section
+      className="site-map-card"
+      aria-label={`${siteName} Site Map`}
+    >
 
       {/* ====================================================
-          HEADER
+          OUTER CARD HEADER
       ==================================================== */}
 
-      <div className="panel-header">
+      <div className="site-map-card-header">
 
-        <div className="panel-title">
+        <div className="site-map-card-title">
 
           <Map
             size={18}
@@ -147,120 +171,130 @@ export default function SiteMapCard({ site }) {
 
 
       {/* ====================================================
-          MAP CONTAINER
+          MAP CONTENT
+
+          This creates the breathing space between:
+          Outer card border
+          and
+          Inner image border
       ==================================================== */}
 
-      <div className="site-map-container">
-
-
-        {/* ==================================================
-            IMAGE
-        ================================================== */}
-
-        {imageURL && (
-
-          <img
-
-            src={imageURL}
-
-            alt={
-              site?.name
-                ? `${site.name} Site Map`
-                : "Site Map"
-            }
-
-            className="site-map-image"
-
-            loading="eager"
-
-            draggable={false}
-
-            onLoad={
-              handleImageLoad
-            }
-
-            onError={
-              handleImageError
-            }
-
-          />
-
-        )}
-
+      <div className="site-map-card-content">
 
         {/* ==================================================
-            LOADING STATE
+            INNER IMAGE FRAME
 
-            Only displayed while the actual image
-            is being loaded.
+            The inner border belongs here.
         ================================================== */}
 
-        {loading && !imageLoaded && (
+        <div
+          className={[
+            "site-map-image-frame",
+            imageLoaded ? "is-loaded" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
 
-          <div className="map-overlay">
+          {/* ================================================
+              IMAGE
+          ================================================= */}
 
-            <Loader2
-              size={26}
-              className="spin"
-              aria-hidden="true"
+          {imageURL && (
+
+            <img
+              src={imageURL}
+              alt={`${siteName} Site Map`}
+              className="site-map-image"
+              loading="eager"
+              decoding="async"
+              draggable={false}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
             />
 
-            <span>
-              Loading Site Map...
-            </span>
-
-          </div>
-
-        )}
+          )}
 
 
-        {/* ==================================================
-            ERROR STATE
-        ================================================== */}
+          {/* ================================================
+              LOADING STATE
+          ================================================= */}
 
-        {!loading && error && (
+          {loading && !imageLoaded && (
 
-          <div className="map-overlay">
+            <div
+              className="map-overlay"
+              role="status"
+              aria-live="polite"
+            >
 
-            <AlertCircle
-              size={26}
-              aria-hidden="true"
-            />
+              <Loader2
+                size={26}
+                className="spin"
+                aria-hidden="true"
+              />
 
-            <span>
-              {error}
-            </span>
+              <span>
+                Loading Site Map...
+              </span>
 
-          </div>
+            </div>
 
-        )}
+          )}
 
 
-        {/* ==================================================
-            NO IMAGE STATE
-        ================================================== */}
+          {/* ================================================
+              ERROR STATE
+          ================================================= */}
 
-        {!imageURL && !loading && (
+          {!loading && error && (
 
-          <div className="map-placeholder">
+            <div
+              className="map-overlay"
+              role="alert"
+            >
 
-            <ImageIcon
-              size={56}
-              aria-hidden="true"
-            />
+              <AlertCircle
+                size={26}
+                aria-hidden="true"
+              />
 
-            <h3>
-              Site Map Not Available
-            </h3>
+              <span>
+                {error}
+              </span>
 
-            <p>
-              Upload site map image
-              URL in Firestore.
-            </p>
+            </div>
 
-          </div>
+          )}
 
-        )}
+
+          {/* ================================================
+              NO IMAGE STATE
+          ================================================= */}
+
+          {!imageURL && !loading && (
+
+            <div className="map-placeholder">
+
+              <ImageIcon
+                size={56}
+                aria-hidden="true"
+              />
+
+              <h3>
+                Site Map Not Available
+              </h3>
+
+              <p>
+                Add a valid Site Map image URL
+                in Firestore.
+              </p>
+
+            </div>
+
+          )}
+
+        </div>
 
       </div>
 

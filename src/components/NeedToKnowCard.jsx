@@ -8,8 +8,9 @@ import {
   Moon,
   PlaneTakeoff,
   Info,
+  Map,
+  Route,
 } from "lucide-react";
-
 
 /* ==========================================================
    NEED TO KNOW CARD
@@ -20,128 +21,198 @@ import {
        └── operational
             └── needToKnow [array]
 
-   Expected Firestore object:
+   RESPONSIBILITY:
 
-   {
-     id: "0",
-     title: "SkyStation-4 Location",
-     location: "SkyStation V3",
-     description: "..."
-   }
+   Firestore
+   └── Controls operational DATA
 
-   IMPORTANT:
-   - Firestore controls DATA.
-   - Frontend controls ICONS / UI / formatting.
-   - Icons are resolved semantically from the title.
-   - Firestore ID is used only as a legacy fallback.
-   - Row position/index NEVER determines the icon.
+   Frontend
+   ├── Controls ICONS
+   ├── Controls UI
+   └── Controls formatting
+
+   ICON RESOLUTION:
+   - Primary source = semantic TITLE
+   - Matching is NOT dependent on row/index
+   - Matching tolerates capitalization and spacing
+   - Matching supports title variations/extensions
+   - Legacy ID fallback is used ONLY when title is missing
+   - Unknown titles safely fall back to Info
+
+   This makes the component reusable across
+   multiple Site Cards / Firestore documents.
 ========================================================== */
 
 
 /* ==========================================================
-   SEMANTIC TITLE ICON MAPPING
+   SEMANTIC TITLE ICON RULES
 
-   PRIMARY ICON SOURCE
+   IMPORTANT:
+   Do NOT use exact Firestore IDs for primary icon
+   determination.
 
-   The title determines the operational meaning.
+   The operational meaning of the TITLE determines
+   the icon.
 
-   This allows the same component to work across
-   multiple sites without depending on row order.
+   Rules are evaluated from top to bottom.
 ========================================================== */
 
-const NEED_TO_KNOW_TITLE_ICONS = Object.freeze({
+const NEED_TO_KNOW_ICON_RULES = Object.freeze([
 
   /* --------------------------------------------------------
-     INFRASTRUCTURE
+     SKYSTATION / SITE LOCATION
   -------------------------------------------------------- */
 
-  "SkyStation-4 Location":
-    Box,
-
-  "Alternate Landing Point":
-    PlaneLanding,
-
-  "Relay Station":
-    RadioTower,
-
-  "Cell Tower":
-    TowerControl,
+  {
+    match: (title) =>
+      title === "skystation location" ||
+      title === "skystation 4 location" ||
+      title === "skystation-4 location" ||
+      title.includes("skystation location"),
+    icon: Map,
+  },
 
 
   /* --------------------------------------------------------
-     HUMAN / VILLAGE
+     ALTERNATE LANDING
   -------------------------------------------------------- */
 
-  "Dense Village Area":
-    House,
+  {
+    match: (title) =>
+      title.includes("alternate landing point"),
+    icon: PlaneLanding,
+  },
 
-  "Village Area":
-    House,
 
-  "Village & Community Area":
-    House,
+  /* --------------------------------------------------------
+     RELAY / COMMUNICATION
+  -------------------------------------------------------- */
+
+  {
+    match: (title) =>
+      title.includes("relay station"),
+    icon: RadioTower,
+  },
+
+
+  /* --------------------------------------------------------
+     CELL TOWER
+  -------------------------------------------------------- */
+
+  {
+    match: (title) =>
+      title.includes("cell tower"),
+    icon: TowerControl,
+  },
+
+
+  /* --------------------------------------------------------
+     ROAD / ACCESS
+  -------------------------------------------------------- */
+
+  {
+    match: (title) =>
+      title.includes("active road") ||
+      title === "road" ||
+      title.includes("road near skystation") ||
+      title.includes("elevated road"),
+    icon: Route,
+  },
+
+
+  /* --------------------------------------------------------
+     HUMAN / CIVILIAN / VILLAGE
+  -------------------------------------------------------- */
+
+  {
+    match: (title) =>
+      title.includes("dense civilian area") ||
+      title.includes("dense village area") ||
+      title.includes("village area") ||
+      title.includes("village community area") ||
+      title.includes("community area"),
+    icon: House,
+  },
 
 
   /* --------------------------------------------------------
      TERRAIN
   -------------------------------------------------------- */
 
-  "Terrain Elevation Variation":
-    Mountain,
+  {
+    match: (title) =>
+      title.includes("terrain elevation") ||
+      title.includes("terrain variation") ||
+      title.includes("sand dune") ||
+      title.includes("sand dunes"),
+    icon: Mountain,
+  },
 
 
   /* --------------------------------------------------------
      SIGNAL
   -------------------------------------------------------- */
 
-  "Recurring Signal Loss":
-    RadioTower,
+  {
+    match: (title) =>
+      title.includes("signal loss") ||
+      title.includes("recurring signal loss"),
+    icon: RadioTower,
+  },
 
 
   /* --------------------------------------------------------
-     FLIGHT RANGE
+     EXTENDED FLIGHT DISTANCE
   -------------------------------------------------------- */
 
-  "Extended Flight Distance":
-    PlaneTakeoff,
-
-  "Extended Flight Distance Chunk 1":
-    PlaneTakeoff,
+  {
+    match: (title) =>
+      title.includes("extended flight distance"),
+    icon: PlaneTakeoff,
+  },
 
 
   /* --------------------------------------------------------
      NIGHT OPERATIONS
   -------------------------------------------------------- */
 
-  "Night Inspection":
-    Moon,
+  {
+    match: (title) =>
+      title.includes("night inspection") ||
+      title.includes("recommended night inspection"),
+    icon: Moon,
+  },
 
-  "Night Inspection Recommended":
-    Moon,
 
-  "Recommended Night Inspection":
-    Moon,
+  /* --------------------------------------------------------
+     EXTREME END
 
-  "Recommended Night Inspection Blocks 12, 13 & 14":
-    Moon,
+     Route represents the operational path /
+     route concept and is intentionally used for
+     the "Dotted Line / Map" requirement.
+  -------------------------------------------------------- */
 
-});
+  {
+    match: (title) =>
+      title.includes("extreme end"),
+    icon: Route,
+  },
+
+]);
 
 
 /* ==========================================================
    LEGACY FIRESTORE ID ICON MAPPING
 
-   Used ONLY when:
-   - title is missing
-   - title is unknown
+   IMPORTANT:
 
-   Existing zero-based IDs are preserved.
+   IDs are NOT used when a valid title exists.
 
-   0 → House
-   1 → Mountain
-   2 → RadioTower
-   3 → PlaneTakeoff
-   4 → Moon
+   They are retained only for backward compatibility
+   with older Firestore records where title may be
+   missing.
+
+   Existing legacy mapping is preserved.
 ========================================================== */
 
 const NEED_TO_KNOW_ID_ICONS = Object.freeze({
@@ -158,13 +229,18 @@ const NEED_TO_KNOW_ID_ICONS = Object.freeze({
 /* ==========================================================
    NORMALIZE TITLE
 
-   Makes semantic matching more reliable.
+   Converts variations such as:
 
-   Example:
+   " SkyStation Location "
+   "SKYSTATION LOCATION"
+   "SkyStation   Location"
 
-   " Dense Village Area "
-        ↓
-   "dense village area"
+   into:
+
+   "skystation location"
+
+   Also normalizes hyphens and underscores so semantic
+   matching remains reliable across Firestore records.
 ========================================================== */
 
 function normalizeTitle(value) {
@@ -175,37 +251,11 @@ function normalizeTitle(value) {
 
   return value
     .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
 
 }
-
-
-/* ==========================================================
-   NORMALIZED TITLE ICON MAP
-
-   Prevents capitalization / spacing issues.
-========================================================== */
-
-const NORMALIZED_TITLE_ICONS =
-  Object.freeze(
-
-    Object.entries(
-      NEED_TO_KNOW_TITLE_ICONS
-    ).reduce(
-      (map, [title, icon]) => {
-
-        map[
-          normalizeTitle(title)
-        ] = icon;
-
-        return map;
-
-      },
-      {}
-    )
-
-  );
 
 
 /* ==========================================================
@@ -213,12 +263,12 @@ const NORMALIZED_TITLE_ICONS =
 
    PRIORITY:
 
-   1. Semantic title
-   2. Legacy Firestore ID
+   1. Semantic title rule
+   2. Legacy Firestore ID ONLY when title is missing
    3. Generic Info
 
    IMPORTANT:
-   Row index is NEVER used.
+   Row position/index NEVER determines the icon.
 ========================================================== */
 
 function getNeedToKnowIcon(item) {
@@ -233,55 +283,68 @@ function getNeedToKnowIcon(item) {
   }
 
 
-  /* --------------------------------------------------------
-     1. TITLE-BASED RESOLUTION
-  -------------------------------------------------------- */
+  /* ========================================================
+     1. SEMANTIC TITLE RESOLUTION
+  ======================================================== */
 
   const normalizedTitle =
     normalizeTitle(item.title);
 
 
-  if (
-    normalizedTitle &&
-    Object.prototype.hasOwnProperty.call(
-      NORMALIZED_TITLE_ICONS,
-      normalizedTitle
-    )
-  ) {
+  if (normalizedTitle) {
 
-    return NORMALIZED_TITLE_ICONS[
-      normalizedTitle
-    ];
+    const matchingRule =
+      NEED_TO_KNOW_ICON_RULES.find(
+        (rule) =>
+          rule.match(normalizedTitle)
+      );
+
+
+    if (matchingRule) {
+
+      return matchingRule.icon;
+
+    }
 
   }
 
 
-  /* --------------------------------------------------------
+  /* ========================================================
      2. LEGACY FIRESTORE ID FALLBACK
-  -------------------------------------------------------- */
 
-  const id =
-    item.id !== undefined &&
-    item.id !== null
-      ? String(item.id).trim()
-      : "";
+     ONLY used when title is missing.
+
+     This prevents an unknown/new title from accidentally
+     receiving an incorrect icon merely because its ID
+     happens to be "0", "1", "2", etc.
+  ======================================================== */
+
+  if (!normalizedTitle) {
+
+    const id =
+      item.id !== undefined &&
+      item.id !== null
+        ? String(item.id).trim()
+        : "";
 
 
-  if (
-    Object.prototype.hasOwnProperty.call(
-      NEED_TO_KNOW_ID_ICONS,
-      id
-    )
-  ) {
+    if (
+      Object.prototype.hasOwnProperty.call(
+        NEED_TO_KNOW_ID_ICONS,
+        id
+      )
+    ) {
 
-    return NEED_TO_KNOW_ID_ICONS[id];
+      return NEED_TO_KNOW_ID_ICONS[id];
+
+    }
 
   }
 
 
-  /* --------------------------------------------------------
+  /* ========================================================
      3. SAFE DEFAULT
-  -------------------------------------------------------- */
+  ======================================================== */
 
   return Info;
 
@@ -292,6 +355,7 @@ function getNeedToKnowIcon(item) {
    SAFE TEXT FORMATTER
 
    Prevents accidental rendering of:
+
    - objects
    - arrays
    - null
@@ -425,8 +489,12 @@ export default function NeedToKnowCard({
               /* --------------------------------------------
                  SEMANTIC ICON RESOLUTION
 
-                 IMPORTANT:
-                 NEVER use index here.
+                 Icon is derived from the Firestore TITLE.
+
+                 NEVER from:
+                 - row index
+                 - array position
+                 - Firestore ID when title exists
               -------------------------------------------- */
 
               const Icon =
@@ -438,8 +506,8 @@ export default function NeedToKnowCard({
 
                  Prefer Firestore ID.
 
-                 If ID is unavailable, construct a stable
-                 fallback from title + index.
+                 If unavailable, use title + index as
+                 a rendering fallback.
               -------------------------------------------- */
 
               const itemId =
@@ -489,7 +557,7 @@ export default function NeedToKnowCard({
 
 
                     {/* ======================================
-                        TITLE + SUB TITLE
+                        TITLE + LOCATION
                     ====================================== */}
 
                     <div

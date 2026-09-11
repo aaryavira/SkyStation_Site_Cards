@@ -6,212 +6,322 @@ import {
   Wind,
   RadioTower,
   Mountain,
-  ExternalLink,
+  Cable,
   Route,
+  ExternalLink,
 } from "lucide-react";
 
 
 /* ==========================================================
    FLIGHT OBSTACLES CARD
 
-   Firestore:
-   operational
-      └── FlightObstacles
+   DATA SOURCE:
+   Firestore
+
+      Site
+       └── operational
+            └── FlightObstacles [map / array]
+
+   Expected Firestore object:
+
+   {
+     Name: "Cable corridor near end of Block 19 for 10m",
+     Type: "Cable Corridor",
+     url: "https://maps.app.goo.gl/..."
+   }
 
    IMPORTANT:
-   - Firestore remains the source of truth.
-   - Icon selection is derived ONLY from Type.
-   - Type may now contain additional location/context
-     information.
+   - Firestore controls DATA.
+   - Frontend controls ICONS / UI / formatting.
+   - Icons are resolved ONLY from Firestore "Type".
+   - Name is NEVER used for icon selection.
+   - Row position/index NEVER determines the icon.
+   - Unknown types safely use AlertTriangle.
+========================================================== */
 
-   Examples:
-     "Signal Loss"
-     "Signal Loss - Chunk 3 (Block 34)"
 
-   The additional information does NOT affect icon selection.
+/* ==========================================================
+   NORMALIZE OBSTACLE TYPE
+
+   Handles:
+   - Uppercase / lowercase differences
+   - Leading / trailing spaces
+   - Multiple spaces
+
+   Example:
+
+   " Cable Corridor "
+          ↓
+   "cable corridor"
+========================================================== */
+
+function normalizeObstacleType(value) {
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+
+}
+
+
+/* ==========================================================
+   OBSTACLE TYPE → ICON MAPPING
+
+   PRIMARY ICON SOURCE:
+   Firestore "Type"
+
+   IMPORTANT:
+   Existing mappings are preserved to avoid affecting
+   previously configured Site Cards such as:
+
+   Adani Green Baiya - Site Card
+
+   Only the explicitly required new mapping has been added:
+
+   "Cable Corridor" → Cable
+========================================================== */
+
+const OBSTACLE_TYPE_ICONS = Object.freeze({
+
+  /* --------------------------------------------------------
+     CABLE / POWER INFRASTRUCTURE
+  -------------------------------------------------------- */
+
+  "cable corridor":
+    Cable,
+
+  "cable":
+    Cable,
+
+  "power line":
+    RadioTower,
+
+  "transmission":
+    RadioTower,
+
+
+  /* --------------------------------------------------------
+     SIGNAL
+  -------------------------------------------------------- */
+
+  "signal loss":
+    RadioTower,
+
+  "signal":
+    RadioTower,
+
+
+  /* --------------------------------------------------------
+     CELL TOWER
+  -------------------------------------------------------- */
+
+  "cell tower":
+    TowerControl,
+
+  "cell":
+    TowerControl,
+
+
+  /* --------------------------------------------------------
+     TERRAIN
+  -------------------------------------------------------- */
+
+  "terrain":
+    Mountain,
+
+  "sand dunes":
+    Mountain,
+
+  "sand dune":
+    Mountain,
+
+
+  /* --------------------------------------------------------
+     ROAD
+  -------------------------------------------------------- */
+
+  "road":
+    Route,
+
+  "elevated road":
+    Route,
+
+
+  /* --------------------------------------------------------
+     VEGETATION
+  -------------------------------------------------------- */
+
+  "tree":
+    Trees,
+
+  "trees":
+    Trees,
+
+
+  /* --------------------------------------------------------
+     BUILDING
+  -------------------------------------------------------- */
+
+  "building":
+    Building2,
+
+
+  /* --------------------------------------------------------
+     WIND
+  -------------------------------------------------------- */
+
+  "wind":
+    Wind,
+
+  "wind turbine":
+    Wind,
+
+
+  /* --------------------------------------------------------
+     TOWER
+  -------------------------------------------------------- */
+
+  "tower":
+    TowerControl,
+
+});
+
+
+/* ==========================================================
+   GET OBSTACLE ICON
+
+   PRIORITY:
+
+   1. Firestore Type
+   2. Safe generic AlertTriangle
+
+   IMPORTANT:
+   - Name is NOT checked.
+   - Index is NOT checked.
+   - No site-specific logic is used.
+
+   Therefore the same component works across every
+   Site Card in the system.
+========================================================== */
+
+function getObstacleIcon(item) {
+
+  if (
+    !item ||
+    typeof item !== "object"
+  ) {
+
+    return AlertTriangle;
+
+  }
+
+
+  const normalizedType =
+    normalizeObstacleType(item.Type);
+
+
+  if (
+    normalizedType &&
+    Object.prototype.hasOwnProperty.call(
+      OBSTACLE_TYPE_ICONS,
+      normalizedType
+    )
+  ) {
+
+    return OBSTACLE_TYPE_ICONS[
+      normalizedType
+    ];
+
+  }
+
+
+  /* --------------------------------------------------------
+     SAFE DEFAULT
+
+     Any new Firestore Type that has not yet been mapped
+     will still render correctly without breaking the card.
+  -------------------------------------------------------- */
+
+  return AlertTriangle;
+
+}
+
+
+/* ==========================================================
+   SAFE TEXT FORMATTER
+
+   Prevents accidental rendering of:
+   - objects
+   - arrays
+   - null
+   - undefined
+========================================================== */
+
+function formatText(value) {
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+
+    return "--";
+
+  }
+
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number"
+  ) {
+
+    return String(value);
+
+  }
+
+
+  return "--";
+
+}
+
+
+/* ==========================================================
+   FLIGHT OBSTACLES CARD
 ========================================================== */
 
 export default function ObstaclesCard({
+
   obstacles = {},
+
 }) {
 
+
   /* ========================================================
-     NORMALIZE OBSTACLES
+     NORMALIZE FIRESTORE DATA
 
      Supports both:
-       Firestore Map
-       Array
+
+     1. Firestore Map
+     2. Array
+
+     This keeps compatibility with existing Site Cards.
   ======================================================== */
 
-  const obstacleList = Array.isArray(obstacles)
-    ? obstacles
-    : Object.values(obstacles || {});
+  const obstacleList =
 
+    Array.isArray(obstacles)
 
-  /* ========================================================
-     ICON DECISION
+      ? obstacles
 
-     IMPORTANT:
-     Icon selection is based ONLY on the primary obstacle
-     keyword contained in Firestore "Type".
+      : Object.values(
+          obstacles || {}
+        );
 
-     This supports values such as:
-
-       Signal Loss
-       Signal Loss - Chunk 3 (Block 34)
-
-       Cell Tower
-       Cell Tower - Chunk 2
-
-       Wind Turbine
-       Wind Turbine - Block 15
-
-     Additional location information is ignored.
-  ======================================================== */
-
-  const getIcon = (item = {}) => {
-
-    const type = String(item.Type || "")
-      .toLowerCase()
-      .trim();
-
-
-    /* ======================================================
-       SIGNAL LOSS
-    ====================================================== */
-
-    if (
-      type === "signal" ||
-      type === "signal loss" ||
-      type.startsWith("signal loss -") ||
-      type.startsWith("signal loss ")
-    ) {
-      return RadioTower;
-    }
-
-
-    /* ======================================================
-       CELL TOWER
-    ====================================================== */
-
-    if (
-      type === "cell" ||
-      type === "cell tower" ||
-      type.startsWith("cell tower -") ||
-      type.startsWith("cell tower ")
-    ) {
-      return TowerControl;
-    }
-
-
-    /* ======================================================
-       TERRAIN / SAND DUNE
-    ====================================================== */
-
-    if (
-      type === "terrain" ||
-      type === "sand dunes" ||
-      type === "sand dune" ||
-      type.startsWith("terrain -") ||
-      type.startsWith("sand dune -") ||
-      type.startsWith("sand dunes -")
-    ) {
-      return Mountain;
-    }
-
-
-    /* ======================================================
-       ROAD
-    ====================================================== */
-
-    if (
-      type === "road" ||
-      type === "elevated road" ||
-      type.startsWith("road -") ||
-      type.startsWith("elevated road -")
-    ) {
-      return Route;
-    }
-
-
-    /* ======================================================
-       TREES
-    ====================================================== */
-
-    if (
-      type === "tree" ||
-      type === "trees" ||
-      type.startsWith("tree -") ||
-      type.startsWith("trees -")
-    ) {
-      return Trees;
-    }
-
-
-    /* ======================================================
-       BUILDING
-    ====================================================== */
-
-    if (
-      type === "building" ||
-      type.startsWith("building -")
-    ) {
-      return Building2;
-    }
-
-
-    /* ======================================================
-       WIND
-    ====================================================== */
-
-    if (
-      type === "wind" ||
-      type === "wind turbine" ||
-      type.startsWith("wind turbine -") ||
-      type.startsWith("wind turbine ")
-    ) {
-      return Wind;
-    }
-
-
-    /* ======================================================
-       TOWER
-    ====================================================== */
-
-    if (
-      type === "tower" ||
-      type.startsWith("tower -") ||
-      type.startsWith("tower ")
-    ) {
-      return TowerControl;
-    }
-
-
-    /* ======================================================
-       POWER LINE / TRANSMISSION
-    ====================================================== */
-
-    if (
-      type === "power line" ||
-      type === "transmission" ||
-      type.startsWith("power line -") ||
-      type.startsWith("transmission -")
-    ) {
-      return RadioTower;
-    }
-
-
-    /* ======================================================
-       FALLBACK
-    ====================================================== */
-
-    return AlertTriangle;
-  };
-
-
-  /* ========================================================
-     RENDER
-  ======================================================== */
 
   return (
 
@@ -258,81 +368,148 @@ export default function ObstaclesCard({
 
       ) : (
 
+
+        /* ==================================================
+           OBSTACLE LIST
+        ================================================== */
+
         <div className="parameter-table">
 
-          {obstacleList.map((item, index) => {
+          {obstacleList.map(
+            (item, index) => {
 
-            const Icon = getIcon(item);
 
-            return (
+              /* --------------------------------------------
+                 DYNAMIC ICON
 
-              <div
-                key={index}
-                className="parameter-row"
-              >
+                 Icon is resolved ONLY from:
 
-                {/* ==========================================
-                    LEFT SIDE
-                ========================================== */}
+                 Firestore → Type
+              -------------------------------------------- */
 
-                <div className="parameter-left">
+              const Icon =
+                getObstacleIcon(item);
 
-                  <div className="parameter-icon">
 
-                    <Icon size={18} />
+              /* --------------------------------------------
+                 STABLE KEY
+
+                 Prefer Firestore Name + Type.
+
+                 Index is only used as a final fallback
+                 for React rendering and NEVER for icon
+                 selection.
+              -------------------------------------------- */
+
+              const obstacleKey =
+
+                `${formatText(item?.Type)}-${formatText(
+                  item?.Name
+                )}-${index}`;
+
+
+              return (
+
+                <div
+                  key={obstacleKey}
+                  className="parameter-row"
+                >
+
+
+                  {/* ======================================
+                      LEFT SECTION
+                  ====================================== */}
+
+                  <div className="parameter-left">
+
+
+                    {/* ====================================
+                        DYNAMIC ICON
+                    ==================================== */}
+
+                    <div className="parameter-icon">
+
+                      <Icon
+                        size={18}
+                        aria-hidden="true"
+                      />
+
+                    </div>
+
+
+                    {/* ====================================
+                        TYPE + NAME
+                    ==================================== */}
+
+                    <div>
+
+                      <small
+                        style={{
+                          display: "block",
+                          color:
+                            "var(--text-secondary)",
+                          fontSize: "11px",
+                          marginBottom: "2px",
+                        }}
+                      >
+
+                        {formatText(
+                          item?.Type
+                        )}
+
+                      </small>
+
+
+                      <strong>
+
+                        {formatText(
+                          item?.Name
+                        )}
+
+                      </strong>
+
+                    </div>
 
                   </div>
 
 
-                  <div>
+                  {/* ======================================
+                      GOOGLE MAP / EXTERNAL LINK
+                  ====================================== */}
 
-                    <small
-                      style={{
-                        display: "block",
-                        color: "var(--text-secondary)",
-                        fontSize: "11px",
-                        marginBottom: "2px",
-                      }}
+                  {item?.url ? (
+
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="dock-link"
+                    >
+                      {item?.title || ""}
+                      <ExternalLink size={13} />
+                    </a>
+
+                  ) : (
+
+                    <span
+                      className="dock-link"
+                      aria-hidden="true"
                     >
 
-                      {item.Type}
+                      <ExternalLink
+                        size={13}
+                      />
 
-                    </small>
+                    </span>
 
-
-                    <strong>
-                      {item.Name}
-                    </strong>
-
-                  </div>
+                  )}
 
                 </div>
 
+              );
 
-                {/* ==========================================
-                    LOCATION / EXTERNAL LINK
-                ========================================== */}
-
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="dock-link"
-                >
-
-                  {item.title}
-
-                  <ExternalLink
-                    size={13}
-                  />
-
-                </a>
-
-              </div>
-
-            );
-
-          })}
+            }
+          )}
 
         </div>
 
@@ -341,4 +518,5 @@ export default function ObstaclesCard({
     </section>
 
   );
+
 }

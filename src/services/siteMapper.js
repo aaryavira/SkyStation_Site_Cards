@@ -103,6 +103,63 @@ function mapParameter(parameter, fallbackId = "") {
 }
 
 function mapParameterArray(value) {
+
+  /*
+   * CASE 1: Firestore stores ONE parameter directly
+   *
+   * Example:
+   * {
+   *   id: "minimumFlightAltitude",
+   *   subtitle: "All Blocks",
+   *   value: "80 m"
+   * }
+   *
+   * Do NOT pass this through toArray(), because toArray()
+   * would convert it into:
+   *
+   * ["minimumFlightAltitude", "All Blocks", "80 m"]
+   *
+   * and those strings would then be filtered out.
+   */
+
+  if (
+    isObject(value) &&
+    (
+      value.id !== undefined ||
+      value.value !== undefined ||
+      value.subtitle !== undefined
+    )
+  ) {
+    const parameter =
+      mapParameter(
+        value,
+        "parameter"
+      );
+
+    return parameter
+      ? [parameter]
+      : [];
+  }
+
+
+  /*
+   * CASE 2: Firestore stores multiple parameters
+   *
+   * Supports:
+   *
+   * [
+   *   { id, subtitle, value },
+   *   { id, subtitle, value }
+   * ]
+   *
+   * OR:
+   *
+   * {
+   *   chunk1: { id, subtitle, value },
+   *   chunk2: { id, subtitle, value }
+   * }
+   */
+
   return toArray(value)
     .filter(isObject)
     .map((item, index) =>
@@ -141,6 +198,9 @@ function mapDayOperations(rawDay) {
       [
         "maximumFlightAltitude",
         "Maximum Flight Altitude",
+
+        // Legacy Firestore typo support
+        "maximumFlightAltitud",
       ]
     );
 
@@ -209,10 +269,58 @@ function mapNightOperations(rawNight) {
       []
     );
 
+  const maximumFlightAltitude =
+    getField(
+      night,
+      [
+        "maximumFlightAltitude",
+        "Maximum Flight Altitude",
+
+        // Legacy Firestore typo support
+        "maximumFlightAltitud",
+      ]
+    );
+
+  const safeAltitude =
+    getField(
+      night,
+      [
+        "safeAltitude",
+        "Safe Altitude",
+      ]
+    );
+
+  const rthAltitude =
+    getField(
+      night,
+      [
+        "rthAltitude",
+        "RTH Altitude",
+      ]
+    );
+
   return {
     minimumFlightAltitude:
       mapParameterArray(
         minimumFlightAltitude
+      ),
+
+    maximumFlightAltitude:
+      mapParameter(
+        maximumFlightAltitude,
+        "maximumFlightAltitude"
+      ),
+
+    safeAltitude:
+      mapParameter(
+        safeAltitude,
+        "safeAltitude"
+      ),
+
+    rthAltitude:
+      mapParameter(
+        rthAltitude,
+        "rthAltitude"
       ),
   };
 }
